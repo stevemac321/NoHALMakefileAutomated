@@ -1,0 +1,16 @@
+tar ext:3333
+set confirm off
+break dummy
+break main
+run
+step
+continue
+
+# Wait a bit before kill/delete
+shell sleep 1
+
+delete
+
+kill
+
+
