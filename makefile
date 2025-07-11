@@ -10,11 +10,13 @@ SIZE    = arm-none-eabi-size
 
 # Flags
 
-LDFLAGS = -TSTM32F401RETX_FLASH.ld --specs=nano.specs -Wl,--gc-sections
+
+LDFLAGS = -TSTM32F401RETX_FLASH.ld -nostdlib -Wl,--gc-sections
 
 CFLAGS  = -mcpu=cortex-m4 -mthumb -Wall -Og -ffreestanding  -g -DSTM32F401xE -DDEBUG \
           -I./Core/Inc -IDrivers/CMSIS/Include -IDrivers/CMSIS/Device/ST/STM32F4xx/Include \
-          -mfpu=fpv4-sp-d16 -mfloat-abi=hard  -u _printf_float
+          -mfpu=fpv4-sp-d16 -mfloat-abi=hard
+
 
 # Source files
 SRCS = \

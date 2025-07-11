@@ -33,6 +33,7 @@ void enable_default_clock(void);
 void uart2_init(void);
 void ADC1_init(void);
 void dummy() {printf("test complete\n");}
+void __libc_init_array(){}
 
 /* USER CODE END PFP */
 
