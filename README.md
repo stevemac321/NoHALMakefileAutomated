@@ -1,190 +1,195 @@
+
 ```markdown
-# STM32 BareBones Project Automation (this one is specific for STM32F401RE, see below for porting to a different STM)
+# 🚫 No HAL, No Libc: True STM32 BareBones Project
 
-This project demonstrates a streamlined workflow for building, flashing, debugging, and monitoring a bare-metal STM32 firmware project using a Python script. It targets the STM32F401RE microcontroller and automates the typical development loop. See
+This project is a true **bare-metal STM32** firmware development setup. It targets the **STM32F401RE**, but can be adapted to other STM32 boards (see below). The goal: **zero HAL**, **no libc**, and minimal dependencies — just Make, a cross-compiler, OpenOCD, and a Python script to automate everything.
 
 ---
 
-## 🛠️ Requirements
+## ⚙️ Tools Required
 
-Install the following tools:
+Install these on your system:
 
-- `arm-none-eabi-gcc` (or other suitable cross-compiler)
+- `arm-none-eabi-gcc` — ARM cross-compiler
 - `make`
-- `openocd`
-- `gdb-multiarch`
-- `stlink-tools` (`st-flash`)
-- `screen` (for UART monitoring)
-- Python 3
-
-Optional but helpful:
-
-- A `.gdb` script to automate breakpoints, stepping, or running
-- A Makefile that produces:
-  - `BareBones.elf`
-  - `BareBones.bin`
+- `openocd` — for flashing and debug bridge
+- `gdb-multiarch` — GDB with ARM support
+- `screen` — for monitoring UART (`/dev/ttyACM0`)
+- `python3` — for automation script
+- `st-flash` (optional — alternative to OpenOCD flashing)
 
 ---
 
-## 📂 Directory Layout
+## 🗂️ Directory Structure
 
 ```
 
 BareBones/
-├── Makefile
-├── BareBones.elf
-├── BareBones.bin
-├── gdbscript         # GDB automation commands (e.g., break main, continue, etc.)
-├── automate.py       # Main Python script to control build/flash/debug
-└── (source files...)
+├── Makefile           # Build BareBones.elf and BareBones.bin
+├── BareBones.elf      # Output ELF (debuggable)
+├── BareBones.bin      # Raw binary for flashing
+├── gdbscript          # Optional GDB script: break main, continue, etc.
+├── automate.py        # Automates build, flash, GDB debug session
+├── main.c             # Your bare-metal main (no HAL, no stdlib)
+├── startup\_stm32f401xe.s
+├── linker.ld
+└── syscalls.c         # Provides minimal syscall stubs (\_write, \_sbrk, etc.)
 
 ````
 
 ---
 
-## 🚀 Usage
+## 🚀 One-Step Workflow
 
-Run the automation script:
+In one terminal:
 
 ```bash
 ./automate.py clean build flashrun
 ````
 
-This will:
+What it does:
 
-1. Clean the project with `make clean`
-2. Build it with `make`
-3. Flash `BareBones.bin` to the STM32
-4. Start OpenOCD and GDB using `BareBones.elf` and the `gdbscript`
-5. Kill OpenOCD when GDB completes
+1. Runs `make clean`
+2. Builds with `make` (produces ELF + BIN)
+3. Flashes with OpenOCD
+4. Starts OpenOCD + GDB in one shell (using `gdbscript`)
+5. Cleanly exits GDB and kills OpenOCD
 
-You should run this in one terminal shell.
+---
 
-In **another terminal**, run:
+## 📡 Monitor UART
+
+Open a second terminal:
 
 ```bash
 screen /dev/ttyACM0 115200
 ```
 
-This allows you to monitor UART output from the STM32.
+This shows the output from your MCU via UART.
 
 ---
 
-## 🔁 Typical Workflow
+## 🔁 Workflow Summary
 
-In two terminals:
-
-* **Shell 1**: Run `./automate.py clean build flashrun`
-* **Shell 2**: Run `screen /dev/ttyACM0 115200` (or reopen after each reset)
-
-You can rerun `automate.py` as needed for each test iteration.
-
----
-
-## ❌ Killing Screen
-
-To close the UART monitoring session:
-
-### From inside screen:
-
-1. Press `Ctrl-A`, then `K`
-2. Confirm with `y`
-
-### From outside screen:
+**Terminal 1**:
 
 ```bash
-screen -ls
-screen -X -S <session_name> quit
+./automate.py clean build flashrun
+```
+
+**Terminal 2**:
+
+```bash
+screen /dev/ttyACM0 115200
+```
+
+Repeat the automation script after each code change. Reconnect screen after flashing.
+
+---
+
+## ❌ How to Kill `screen`
+
+**Inside screen**:
+Press `Ctrl-A`, then `K`, then `y` to confirm.
+
+**Outside screen**:
+
+```bash
+screen -ls         # Get session name
+screen -X -S <name> quit
 ```
 
 ---
 
-## 🧪 Automation Goals
+## 🧩 Porting to a Different STM32
 
-This setup supports a testing pipeline where each test:
+You can reuse this setup with any STM32 chip — here's how.
 
-* Builds and flashes a firmware image
-* Runs automatically via GDB control (e.g., breaking on a `dummy()` function)
-* Prints results over UART
+### ✅ Steps
 
-You can use this pattern for automating embedded test suites like your MLibs framework.
+1. **Generate Initial Project with STM32CubeIDE**
 
----
----
+   * Select your board or chip (e.g. STM32F411, STM32F103).
+   * Accept default settings or increase stack/heap if needed.
 
-## 🔧 Porting to a Different STM32 Board
+2. **Generate the Project**
 
-If you're using a board other than the STM32F401RE, you can bootstrap support using STM32CubeIDE to generate the low-level configuration files, then transition to a minimal (non-HAL) setup. Here's a streamlined workflow:
+   * STM32Cube will create:
 
-### 🧱 Step-by-Step
+     * CMSIS startup and headers
+     * `stm32fxxx.h`, `system_stm32fxxx.c`
+     * A linker script
+     * HAL and driver code (you’ll delete this)
 
-1. **Create a New STM32CubeIDE Project**
-   - Select your board (e.g. Nucleo-F411RE or STM32F103C8T6).
-   - Choose an empty project or basic template.
-   - Use default settings, but you may want to tweak heap/stack sizes now or later in the linker script.
+3. **Strip It Down**
 
-2. **Generate the Code**
-   - Let STM32Cube generate the initial project files.
-   - This gives you:
-     - The correct preprocessor defines
-     - A linker script
-     - The CMSIS startup code and `stm32fxxx.h` headers
-     - HAL source files (which we will delete)
+   * Remove all `HAL_*` calls from `main.c`
+   * Delete HAL folders:
 
-3. **Remove HAL**
-   - Delete the HAL initialization code from `main.c` (e.g., `HAL_Init()`, `SystemClock_Config()`).
-   - Delete all HAL directories:
      ```
      Drivers/STM32F4xx_HAL_Driver/
      ```
 
-4. **Add Minimal Support**
-   - Copy `syscalls.c` from this repo into your project. This provides stubs for `_write`, `_sbrk`, etc. for minimal libc support.
-   - Optionally copy `sysmem.c` if your IDE setup expects it (depends on how the newlib nano is configured). I have _write in main.c.
+4. **Add Bare Essentials**
 
-5. **Build in STM32CubeIDE**
-   - Ensure the project still compiles cleanly with only CMSIS and no HAL.
-   - If you see `_write` or `sbrk` undefined errors, check `syscalls.c` is included.
+   * Copy `syscalls.c` from this repo (for `_write`, `_sbrk`, etc.)
+   * Add `sysmem.c` if needed by your build system
+   * Confirm it builds **without any HAL**
 
-6. **Try Building with Makefile**
-   - Use your working IDE build to extract:
-     - The correct `*.ld` linker script
-     - The `stm32fxxx.h` header
-     - The required preprocessor defines (from the IDE build command or `.cproject`)
-   - Copy or adapt these into your `BareBones` template project.
+5. **Build with Makefile**
 
-7. **Note on `nano` Lib**
-   - This template uses **newlib-nano**, which is a minimal C library.
-   - If you strip out `nano`, you may need to define stubs like `__libc_init_array()` or `__initialize_hardware_early()` manually.
+   * Extract from CubeIDE:
 
----
+     * Linker script (`.ld`)
+     * CMSIS startup file
+     * `stm32fxxx.h`
+     * Preprocessor defines (from build log or `.cproject`)
+   * Adapt the Makefile to your chip and source layout
 
-## 📁 Summary: Files You’ll Need
+6. **Remove newlib-nano (optional)**
 
-From the generated IDE project:
+   * Remove `--specs=nano.specs`
+   * Add `-nostdlib` to `CFLAGS` or `LDFLAGS`
+   * Provide stubs:
 
-- ✅ `startup_stm32fxxx.s` — startup file with vector table
-- ✅ `stm32fxxx.h` — CMSIS device header for your MCU
-- ✅ `system_stm32fxxx.c` — CMSIS system init file
-- ✅ `*.ld` — linker script
-- ✅ Your own `main.c` or `main.cpp` with all HAL stripped out
-- ✅ `syscalls.c` — minimal syscall support
-- ✅ `Makefile` — adapted from the BareBones template
-
-You can now use your board with this same `automate.py` workflow for testing and flashing.
+     * `__libc_init_array()`
+     * `_exit()`, `_sbrk()`, etc.
 
 ---
 
+## 🧱 Minimal File Set for Any STM32 Board
 
-## 📝 To-Do
+You'll need:
 
-* [ ] Integrate UART reading into Python (optional)
-* [ ] Add test result parsing over serial
-* [ ] Handle GDB timeouts gracefully
+* `startup_stm32fxxx.s` — vector table and reset handler
+* `stm32fxxx.h` — CMSIS device header
+* `system_stm32fxxx.c` — sets up clocks (optional)
+* `linker.ld` — chip-specific memory layout
+* `main.c` — your logic, no HAL
+* `syscalls.c` — for `_write`, `_sbrk`, etc.
+* `Makefile` — adapted to your build
+* `automate.py` — for flashing/debugging automation
+
+---
+
+## 📝 Notes
+
+* GDB is started with `gdb-multiarch` and connects to OpenOCD.
+* Output is printed via `USART2` on `/dev/ttyACM0` at 115200 baud.
+* `syscalls.c` can be stripped further if you're not using `printf()` or malloc.
+* Stubbing out `__libc_init_array()` is required if you disable all libc.
+
+---
+
+## ⏳ To-Do
+
+* [ ] Optional: Integrate UART monitoring into `automate.py`
+* [ ] Optional: Parse UART output for test results
+* [ ] Handle OpenOCD/GDB timeouts or failures gracefully
 
 ---
 
 ## 📄 License
 
-GPL v.2
-```
+GPL v2
+
